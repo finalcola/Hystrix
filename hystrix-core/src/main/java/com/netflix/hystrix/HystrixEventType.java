@@ -117,6 +117,7 @@ public enum HystrixEventType {
             }
         }
 
+        // 将HystrixEventType装换为ThreadPool类型
         public static ThreadPool from(HystrixEventType eventType) {
             switch (eventType) {
                 case SUCCESS: return EXECUTED;

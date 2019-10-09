@@ -91,7 +91,9 @@ public abstract class HystrixConcurrencyStrategy {
         }
     }
 
+    // 根据配置创建线程池
     public ThreadPoolExecutor getThreadPool(final HystrixThreadPoolKey threadPoolKey, HystrixThreadPoolProperties threadPoolProperties) {
+        // 获取ThreadFactory（会区分运行平台）
         final ThreadFactory threadFactory = getThreadFactory(threadPoolKey);
 
         final boolean allowMaximumSizeToDivergeFromCoreSize = threadPoolProperties.getAllowMaximumSizeToDivergeFromCoreSize().get();
@@ -116,6 +118,7 @@ public abstract class HystrixConcurrencyStrategy {
     }
 
     private static ThreadFactory getThreadFactory(final HystrixThreadPoolKey threadPoolKey) {
+        // 运行平台非google的AppEngine
         if (!PlatformSpecific.isAppEngineStandardEnvironment()) {
             return new ThreadFactory() {
                 private final AtomicInteger threadNumber = new AtomicInteger(0);

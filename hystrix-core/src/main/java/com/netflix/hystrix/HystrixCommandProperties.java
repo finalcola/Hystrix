@@ -335,6 +335,7 @@ public abstract class HystrixCommandProperties {
 
     /**
      * Time in milliseconds to wait between allowing health snapshots to be taken that calculate success and error percentages and affect {@link HystrixCircuitBreaker#isOpen()} status.
+     * 计算成功和错误百分比并影响{@link HystrixCircuitBreaker#isOpen()}状态的运行状态快照之间的等待时间
      * <p>
      * On high-volume circuits the continual calculation of error percentage can become CPU intensive thus this controls how often it is calculated.
      * 

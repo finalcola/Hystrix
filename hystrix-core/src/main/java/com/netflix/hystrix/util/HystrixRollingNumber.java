@@ -48,13 +48,19 @@ import com.netflix.hystrix.strategy.properties.HystrixProperty;
  */
 public class HystrixRollingNumber {
 
+    // 对System.currentTimeMillis的封装
     private static final Time ACTUAL_TIME = new ActualTime();
     private final Time time;
+    // 时间总长度
     final int timeInMilliseconds;
+    // 窗口数
     final int numberOfBuckets;
+    // 窗口长度
     final int bucketSizeInMillseconds;
 
+    // 窗口数组
     final BucketCircularArray buckets;
+    // 累积求和的组件
     private final CumulativeSum cumulativeSum = new CumulativeSum();
 
     /**
@@ -138,6 +144,7 @@ public class HystrixRollingNumber {
         }
 
         // clear buckets so we start over again
+        // 清空bucket
         buckets.clear();
     }
 
@@ -160,6 +167,7 @@ public class HystrixRollingNumber {
 
     /**
      * Get the sum of all buckets in the rolling counter for the given {@link HystrixRollingNumberEvent} type.
+     * 获取指定HystrixRollingNumberEvent的所有窗口sum
      * <p>
      * The {@link HystrixRollingNumberEvent} must be a "counter" type <code>HystrixRollingNumberEvent.isCounter() == true</code>.
      * 
@@ -190,6 +198,7 @@ public class HystrixRollingNumber {
      * @return
      *         value from latest bucket for given {@link HystrixRollingNumberEvent} counter type
      */
+    // 获取当前bucket的值
     public long getValueOfLatestBucket(HystrixRollingNumberEvent type) {
         Bucket lastBucket = getCurrentBucket();
         if (lastBucket == null)
@@ -251,6 +260,7 @@ public class HystrixRollingNumber {
 
     private ReentrantLock newBucketLock = new ReentrantLock();
 
+    // 获取当前时间对应的bucket
     /* package for testing */Bucket getCurrentBucket() {
         long currentTime = time.getCurrentTimeInMillis();
 
@@ -262,6 +272,7 @@ public class HystrixRollingNumber {
          * NOTE: This is thread-safe because it's accessing 'buckets' which is a LinkedBlockingDeque
          */
         Bucket currentBucket = buckets.peekLast();
+        // 窗口时间未过期
         if (currentBucket != null && currentTime < currentBucket.windowStart + this.bucketSizeInMillseconds) {
             // if we're within the bucket 'window of time' return the current one
             // NOTE: We do not worry if we are BEFORE the window in a weird case of where thread scheduling causes that to occur,
@@ -293,9 +304,11 @@ public class HystrixRollingNumber {
          * bucket to calculate the sum themselves. This is an example of favoring write-performance instead of read-performance and how the tryLock
          * versus a synchronized block needs to be accommodated.
          */
+        // 新建窗口
         if (newBucketLock.tryLock()) {
             try {
                 if (buckets.peekLast() == null) {
+                    // 新建bucket
                     // the list is empty so create the first bucket
                     Bucket newBucket = new Bucket(currentTime);
                     buckets.addLast(newBucket);
@@ -307,19 +320,24 @@ public class HystrixRollingNumber {
                         // we have at least 1 bucket so retrieve it
                         Bucket lastBucket = buckets.peekLast();
                         if (currentTime < lastBucket.windowStart + this.bucketSizeInMillseconds) {
+                            // 如果已存在时间服务的窗口
                             // if we're within the bucket 'window of time' return the current one
                             // NOTE: We do not worry if we are BEFORE the window in a weird case of where thread scheduling causes that to occur,
                             // we'll just use the latest as long as we're not AFTER the window
                             return lastBucket;
                         } else if (currentTime - (lastBucket.windowStart + this.bucketSizeInMillseconds) > timeInMilliseconds) {
+                            // 整个滑动窗口时间落后已经超过一轮，则需要重置后进行使用
                             // the time passed is greater than the entire rolling counter so we want to clear it all and start from scratch
                             reset();
                             // recursively call getCurrentBucket which will create a new bucket and return it
+                            // 递归
                             return getCurrentBucket();
                         } else { // we're past the window so we need to create a new bucket
                             // create a new bucket and add it as the new 'last'
+                            // 创建并添加bucket
                             buckets.addLast(new Bucket(lastBucket.windowStart + this.bucketSizeInMillseconds));
                             // add the lastBucket values to the cumulativeSum
+                            // 添加到累计求和的组件
                             cumulativeSum.addBucket(lastBucket);
                         }
                     }
@@ -330,6 +348,7 @@ public class HystrixRollingNumber {
                 newBucketLock.unlock();
             }
         } else {
+            // 存在冲突，退避一段时间后重新获取
             currentBucket = buckets.peekLast();
             if (currentBucket != null) {
                 // we didn't get the lock so just return the latest bucket while another thread creates the next one
@@ -362,8 +381,10 @@ public class HystrixRollingNumber {
 
     /**
      * Counters for a given 'bucket' of time.
+     * 窗口计数器
      */
     /* package */static class Bucket {
+        // 开始时间
         final long windowStart;
         final LongAdder[] adderForCounterType;
         final LongMaxUpdater[] updaterForCounterType;
@@ -379,6 +400,7 @@ public class HystrixRollingNumber {
              */
 
             // initialize the array of LongAdders
+            // 每种类型对应一个累加器
             adderForCounterType = new LongAdder[HystrixRollingNumberEvent.values().length];
             for (HystrixRollingNumberEvent type : HystrixRollingNumberEvent.values()) {
                 if (type.isCounter()) {
@@ -386,6 +408,7 @@ public class HystrixRollingNumber {
                 }
             }
 
+            // 每种类型对应一个更新器
             updaterForCounterType = new LongMaxUpdater[HystrixRollingNumberEvent.values().length];
             for (HystrixRollingNumberEvent type : HystrixRollingNumberEvent.values()) {
                 if (type.isMaxUpdater()) {
@@ -396,6 +419,7 @@ public class HystrixRollingNumber {
             }
         }
 
+        // 获取指定类型的数据(sum或max)
         long get(HystrixRollingNumberEvent type) {
             if (type.isCounter()) {
                 return adderForCounterType[type.ordinal()].sum();
@@ -505,8 +529,11 @@ public class HystrixRollingNumber {
      * benjchristensen => This implementation was chosen based on performance testing I did and documented at: http://benjchristensen.com/2011/10/08/atomiccirculararray/
      */
     /* package */static class BucketCircularArray implements Iterable<Bucket> {
+        // bucket状态
         private final AtomicReference<ListState> state;
+        // 数组长度
         private final int dataLength; // we don't resize, we always stay the same, so remember this
+        // buckets数量
         private final int numBuckets;
 
         /**
@@ -520,6 +547,7 @@ public class HystrixRollingNumber {
              * between ListState objects and multiple threads could maintain references across these
              * compound operations so I want the visibility/concurrency guarantees
              */
+            // 数组
             private final AtomicReferenceArray<Bucket> data;
             private final int size;
             private final int tail;
@@ -528,6 +556,7 @@ public class HystrixRollingNumber {
             private ListState(AtomicReferenceArray<Bucket> data, int head, int tail) {
                 this.head = head;
                 this.tail = tail;
+                // 元素个数
                 if (head == 0 && tail == 0) {
                     size = 0;
                 } else {
@@ -545,6 +574,7 @@ public class HystrixRollingNumber {
                 }
             }
 
+            // 创建并返回数组副本
             private Bucket[] getArray() {
                 /*
                  * this isn't technically thread-safe since it requires multiple reads on something that can change
@@ -558,8 +588,10 @@ public class HystrixRollingNumber {
                 return array.toArray(new Bucket[array.size()]);
             }
 
+            // 尾部+1
             private ListState incrementTail() {
                 /* if incrementing results in growing larger than 'length' which is the max we should be at, then also increment head (equivalent of removeFirst but done atomically) */
+                // 如果容量已满，则将头部和尾部同时+1，即removeFirst,向后滑动窗口
                 if (size == numBuckets) {
                     // increment tail and head
                     return new ListState(data, (head + 1) % dataLength, (tail + 1) % dataLength);
@@ -573,6 +605,7 @@ public class HystrixRollingNumber {
                 return new ListState(new AtomicReferenceArray<Bucket>(dataLength), 0, 0);
             }
 
+            // 添加bucket到尾部
             public ListState addBucket(Bucket b) {
                 /*
                  * We could in theory have 2 threads addBucket concurrently and this compound operation would interleave.
@@ -603,6 +636,7 @@ public class HystrixRollingNumber {
             numBuckets = size;
         }
 
+        // 清除buckets
         public void clear() {
             while (true) {
                 /*
@@ -610,11 +644,11 @@ public class HystrixRollingNumber {
                  * a single thread protected by a tryLock, but there is at least 1 other place (at time of writing this comment)
                  * where reset can be called from (CircuitBreaker.markSuccess after circuit was tripped) so it can
                  * in an edge-case conflict.
-                 * 
+                 *
                  * Instead of trying to determine if someone already successfully called clear() and we should skip
                  * we will have both calls reset the circuit, even if that means losing data added in between the two
                  * depending on thread scheduling.
-                 * 
+                 *
                  * The rare scenario in which that would occur, we'll accept the possible data loss while clearing it
                  * since the code has stated its desire to clear() anyways.
                  */
@@ -633,6 +667,7 @@ public class HystrixRollingNumber {
             return Collections.unmodifiableList(Arrays.asList(getArray())).iterator();
         }
 
+        // 添加bucket到尾部
         public void addLast(Bucket o) {
             ListState currentState = state.get();
             // create new version of state (what we want it to become)

@@ -42,7 +42,7 @@ public interface HystrixCommandGroupKey extends HystrixKey {
 
         /**
          * Retrieve (or create) an interned HystrixCommandGroup instance for a given name.
-         *
+         * 为给定的name创建一个HystrixCommandGroup
          * @param name command group name
          * @return HystrixCommandGroup instance that is interned (cached) so a given name will always retrieve the same instance.
          */
@@ -50,6 +50,7 @@ public interface HystrixCommandGroupKey extends HystrixKey {
            return intern.interned(name);
         }
 
+        // 默认实现
         private static class HystrixCommandGroupDefault extends HystrixKey.HystrixKeyDefault implements HystrixCommandGroupKey {
             public HystrixCommandGroupDefault(String name) {
                 super(name);

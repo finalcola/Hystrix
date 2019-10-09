@@ -57,10 +57,12 @@ public class HystrixPlugins {
     private static class LazyHolder { private static final HystrixPlugins INSTANCE = HystrixPlugins.create(); }
     private final ClassLoader classLoader;
     /* package */ final AtomicReference<HystrixEventNotifier> notifier = new AtomicReference<HystrixEventNotifier>();
+    // 保存加载的HystrixConcurrencyStrategy实现类
     /* package */ final AtomicReference<HystrixConcurrencyStrategy> concurrencyStrategy = new AtomicReference<HystrixConcurrencyStrategy>();
     /* package */ final AtomicReference<HystrixMetricsPublisher> metricsPublisher = new AtomicReference<HystrixMetricsPublisher>();
     /* package */ final AtomicReference<HystrixPropertiesStrategy> propertiesFactory = new AtomicReference<HystrixPropertiesStrategy>();
     /* package */ final AtomicReference<HystrixCommandExecutionHook> commandExecutionHook = new AtomicReference<HystrixCommandExecutionHook>();
+    // 配置类
     private final HystrixDynamicProperties dynamicProperties;
 
     
@@ -69,6 +71,7 @@ public class HystrixPlugins {
         this.classLoader = classLoader;
         //N.B. Do not use a logger before this is loaded as it will most likely load the configuration system.
         //The configuration system may need to do something prior to loading logging. @agentgt
+        // 创建配置类
         dynamicProperties = resolveDynamicProperties(classLoader, logSupplier);
     }
 
@@ -126,8 +129,10 @@ public class HystrixPlugins {
     public HystrixEventNotifier getEventNotifier() {
         if (notifier.get() == null) {
             // check for an implementation from Archaius first
+            // 从Archaius或API中加载
             Object impl = getPluginImplementation(HystrixEventNotifier.class);
             if (impl == null) {
+                // 默认实现类
                 // nothing set via Archaius so initialize with default
                 notifier.compareAndSet(null, HystrixEventNotifierDefault.getInstance());
                 // we don't return from here but call get() again in case of thread-race so the winner will always get returned
@@ -164,8 +169,10 @@ public class HystrixPlugins {
     public HystrixConcurrencyStrategy getConcurrencyStrategy() {
         if (concurrencyStrategy.get() == null) {
             // check for an implementation from Archaius first
+            // 首先加载配置的实现类
             Object impl = getPluginImplementation(HystrixConcurrencyStrategy.class);
             if (impl == null) {
+                // 加载默认实现类
                 // nothing set via Archaius so initialize with default
                 concurrencyStrategy.compareAndSet(null, HystrixConcurrencyStrategyDefault.getInstance());
                 // we don't return from here but call get() again in case of thread-race so the winner will always get returned
@@ -329,21 +336,25 @@ public class HystrixPlugins {
         }
     }
 
-    
+
     private <T> T getPluginImplementation(Class<T> pluginClass) {
+        // 加载插件类
         T p = getPluginImplementationViaProperties(pluginClass, dynamicProperties);
-        if (p != null) return p;        
+        if (p != null) return p;
+        // SPI机制加载
         return findService(pluginClass, classLoader);
     }
-    
+
     @SuppressWarnings("unchecked")
     private static <T> T getPluginImplementationViaProperties(Class<T> pluginClass, HystrixDynamicProperties dynamicProperties) {
         String classSimpleName = pluginClass.getSimpleName();
         // Check Archaius for plugin class.
         String propertyName = "hystrix.plugin." + classSimpleName + ".implementation";
+        // 读取系统配置
         String implementingClass = dynamicProperties.getString(propertyName, null).get();
         if (implementingClass != null) {
             try {
+                // 反射实例化
                 Class<?> cls = Class.forName(implementingClass);
                 // narrow the scope (cast) to the type we're expecting
                 cls = cls.asSubclass(pluginClass);
@@ -361,34 +372,37 @@ public class HystrixPlugins {
             return null;
         }
     }
-    
-    
 
+    // 获取或创建动态配置类
     private static HystrixDynamicProperties resolveDynamicProperties(ClassLoader classLoader, LoggerSupplier logSupplier) {
-        HystrixDynamicProperties hp = getPluginImplementationViaProperties(HystrixDynamicProperties.class, 
+        // 从HystrixDynamicPropertiesSystemProperties中读取实现类名，并实例化
+        HystrixDynamicProperties hp = getPluginImplementationViaProperties(HystrixDynamicProperties.class,
                 HystrixDynamicPropertiesSystemProperties.getInstance());
         if (hp != null) {
             logSupplier.getLogger().debug(
                     "Created HystrixDynamicProperties instance from System property named "
-                    + "\"hystrix.plugin.HystrixDynamicProperties.implementation\". Using class: {}", 
+                            + "\"hystrix.plugin.HystrixDynamicProperties.implementation\". Using class: {}",
                     hp.getClass().getCanonicalName());
             return hp;
         }
+        // 通过ServiceLoader加载
         hp = findService(HystrixDynamicProperties.class, classLoader);
         if (hp != null) {
             logSupplier.getLogger()
-                    .debug("Created HystrixDynamicProperties instance by loading from ServiceLoader. Using class: {}", 
+                    .debug("Created HystrixDynamicProperties instance by loading from ServiceLoader. Using class: {}",
                             hp.getClass().getCanonicalName());
             return hp;
         }
+        // 加载Archaius配置类
         hp = HystrixArchaiusHelper.createArchaiusDynamicProperties();
         if (hp != null) {
-            logSupplier.getLogger().debug("Created HystrixDynamicProperties. Using class : {}", 
+            logSupplier.getLogger().debug("Created HystrixDynamicProperties. Using class : {}",
                     hp.getClass().getCanonicalName());
             return hp;
         }
+        // 加载systemProperties
         hp = HystrixDynamicPropertiesSystemProperties.getInstance();
-        logSupplier.getLogger().info("Using System Properties for HystrixDynamicProperties! Using class: {}", 
+        logSupplier.getLogger().info("Using System Properties for HystrixDynamicProperties! Using class: {}",
                 hp.getClass().getCanonicalName());
         return hp;
     }

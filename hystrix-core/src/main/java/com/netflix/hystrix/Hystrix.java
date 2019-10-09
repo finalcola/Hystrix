@@ -104,16 +104,18 @@ public class Hystrix {
     }
 
     /**
-     * 
      * @return Action0 to perform the same work as `endCurrentThreadExecutingCommand()` but can be done from any thread
      */
-    /* package */static Action0 startCurrentThreadExecutingCommand(HystrixCommandKey key) {
+    /* package */
+    static Action0 startCurrentThreadExecutingCommand(HystrixCommandKey key) {
+        // 记录当前线程的命令执行栈
         final ConcurrentStack<HystrixCommandKey> list = currentCommand.get();
         try {
             list.push(key);
         } catch (Exception e) {
             logger.warn("Unable to record command starting", e);
         }
+        // 清空执行栈
         return new Action0() {
 
             @Override
@@ -128,6 +130,7 @@ public class Hystrix {
         endCurrentThreadExecutingCommand(currentCommand.get());
     }
 
+    // 弹出当前线程的执行栈
     private static void endCurrentThreadExecutingCommand(ConcurrentStack<HystrixCommandKey> list) {
         try {
             if (!list.isEmpty()) {

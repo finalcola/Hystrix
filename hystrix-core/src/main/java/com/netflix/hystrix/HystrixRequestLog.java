@@ -53,22 +53,26 @@ public class HystrixRequestLog {
     private static final HystrixRequestVariableHolder<HystrixRequestLog> currentRequestLog = new HystrixRequestVariableHolder<HystrixRequestLog>(new HystrixRequestVariableLifecycle<HystrixRequestLog>() {
         @Override
         public HystrixRequestLog initialValue() {
+            // 初始值
             return new HystrixRequestLog();
         }
 
         public void shutdown(HystrixRequestLog value) {
             //write this value to the Request stream
+            // 将所有value写入Request stream
             HystrixRequestEventsStream.getInstance().write(value.getAllExecutedCommands());
         }
     });
 
     /**
      * History of {@link HystrixCommand} executed in this request.
+     * 记录当前请求执行的command
      */
     private LinkedBlockingQueue<HystrixCommand<?>> executedCommands = new LinkedBlockingQueue<HystrixCommand<?>>(MAX_STORAGE);
 
     /**
      * History of {@link HystrixInvokableInfo} executed in this request.
+     * 记录当前请求的HystrixInvokableInfo
      */
     private LinkedBlockingQueue<HystrixInvokableInfo<?>> allExecutedCommands = new LinkedBlockingQueue<HystrixInvokableInfo<?>>(MAX_STORAGE);
 
@@ -78,7 +82,7 @@ public class HystrixRequestLog {
 
     /**
      * {@link HystrixRequestLog} for current request as defined by {@link HystrixRequestContext}.
-     * 
+     * 当前请求的日志
      * @return {@link HystrixRequestLog}
      */
     public static HystrixRequestLog getCurrentRequest(HystrixConcurrencyStrategy concurrencyStrategy) {

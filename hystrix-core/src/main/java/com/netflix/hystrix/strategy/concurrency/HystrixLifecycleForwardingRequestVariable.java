@@ -18,6 +18,7 @@ package com.netflix.hystrix.strategy.concurrency;
 /**
  * Implementation of {@link HystrixRequestVariable} which forwards to the wrapped
  * {@link HystrixRequestVariableLifecycle}.
+ * HystrixRequestVariable实现类，对HystrixRequestVariableLifecycle（初始化和shutdown的委托类）进行封装
  * <p>
  * This implementation also returns null when {@link #get()} is called while the {@link HystrixRequestContext} has not
  * been initialized rather than throwing an exception, allowing for use in a {@link HystrixConcurrencyStrategy} which

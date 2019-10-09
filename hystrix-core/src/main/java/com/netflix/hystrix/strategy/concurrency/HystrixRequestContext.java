@@ -75,11 +75,13 @@ public class HystrixRequestContext implements Closeable {
      */
     private static ThreadLocal<HystrixRequestContext> requestVariables = new ThreadLocal<HystrixRequestContext>();
 
+    // 请求上下文是否初始化
     public static boolean isCurrentThreadInitialized() {
         HystrixRequestContext context = requestVariables.get();
         return context != null && context.state != null;
     }
 
+    // 当前线程的上下文信息
     public static HystrixRequestContext getContextForCurrentThread() {
         HystrixRequestContext context = requestVariables.get();
         if (context != null && context.state != null) {
@@ -92,6 +94,7 @@ public class HystrixRequestContext implements Closeable {
         }
     }
 
+    // 设置上下文
     public static void setContextOnCurrentThread(HystrixRequestContext state) {
         requestVariables.set(state);
     }

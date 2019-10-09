@@ -51,9 +51,11 @@ public class HystrixRequestVariableHolder<T> {
          * 2) If no implementation is found in cache then construct from factory.
          * 3) Cache implementation from factory as each object instance needs to be statically cached to be relevant across threads.
          */
+        // 1 缓存中获取RequestVariable
         RVCacheKey key = new RVCacheKey(this, concurrencyStrategy);
         HystrixRequestVariable<?> rvInstance = requestVariableInstance.get(key);
         if (rvInstance == null) {
+            // 2 缓存为空，封装后放入缓存（多线程竞争）
             requestVariableInstance.putIfAbsent(key, concurrencyStrategy.getRequestVariable(lifeCycleMethods));
             /*
              * A safety check to help debug problems if someone starts injecting dynamically created HystrixConcurrencyStrategy instances - which should not be done and has no good reason to be done.
@@ -65,9 +67,11 @@ public class HystrixRequestVariableHolder<T> {
             }
         }
 
+        // 3 再次获取
         return (T) requestVariableInstance.get(key).get();
     }
 
+    // 缓存的key，由holder和HystrixConcurrencyStrategy组成
     private static class RVCacheKey {
 
         private final HystrixRequestVariableHolder<?> rvHolder;

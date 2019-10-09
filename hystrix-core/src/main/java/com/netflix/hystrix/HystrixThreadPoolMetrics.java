@@ -116,7 +116,9 @@ public class HystrixThreadPoolMetrics extends HystrixMetrics {
             ExecutionResult.EventCounts eventCounts = execution.getEventCounts();
             for (HystrixEventType eventType: ALL_COMMAND_EVENT_TYPES) {
                 long eventCount = eventCounts.getCount(eventType);
+                // 将HystrixEventType装换为ThreadPool类型
                 HystrixEventType.ThreadPool threadPoolEventType = HystrixEventType.ThreadPool.from(eventType);
+                // 递增ThreadPool的事件数
                 if (threadPoolEventType != null) {
                     initialCountArray[threadPoolEventType.ordinal()] += eventCount;
                 }
@@ -125,6 +127,7 @@ public class HystrixThreadPoolMetrics extends HystrixMetrics {
         }
     };
 
+    // 累加窗口的计数
     public static final Func2<long[], long[], long[]> counterAggregator = new Func2<long[], long[], long[]>() {
         @Override
         public long[] call(long[] cumulativeEvents, long[] bucketEventCounts) {
@@ -149,6 +152,7 @@ public class HystrixThreadPoolMetrics extends HystrixMetrics {
 
     private final AtomicInteger concurrentExecutionCount = new AtomicInteger();
 
+    // 滑动计数窗口
     private final RollingThreadPoolEventCounterStream rollingCounterStream;
     private final CumulativeThreadPoolEventCounterStream cumulativeCounterStream;
     private final RollingThreadPoolMaxConcurrencyStream rollingThreadPoolMaxConcurrencyStream;

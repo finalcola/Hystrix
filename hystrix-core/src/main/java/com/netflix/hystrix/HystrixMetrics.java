@@ -23,6 +23,7 @@ import com.netflix.hystrix.util.HystrixRollingNumberEvent;
  */
 public abstract class HystrixMetrics {
 
+    // 滑动窗口计数器
     protected final HystrixRollingNumber counter;
 
     protected HystrixMetrics(HystrixRollingNumber counter) {

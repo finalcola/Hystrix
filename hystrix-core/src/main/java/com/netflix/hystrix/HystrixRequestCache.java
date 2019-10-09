@@ -36,6 +36,7 @@ public class HystrixRequestCache {
     private static final Logger logger = LoggerFactory.getLogger(HystrixRequestCache.class);
 
     // the String key must be: HystrixRequestCache.prefix + concurrencyStrategy + cacheKey
+    // 请求的缓存
     private final static ConcurrentHashMap<RequestCacheKey, HystrixRequestCache> caches = new ConcurrentHashMap<RequestCacheKey, HystrixRequestCache>();
 
     private final RequestCacheKey rcKey;

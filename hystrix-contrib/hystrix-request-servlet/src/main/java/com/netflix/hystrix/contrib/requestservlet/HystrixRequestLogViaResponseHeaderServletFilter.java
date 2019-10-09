@@ -64,8 +64,10 @@ public class HystrixRequestLogViaResponseHeaderServletFilter implements Filter {
         } finally {
             try {
                 if (HystrixRequestContext.isCurrentThreadInitialized()) {
+                    // 获取当前请求的执行日志
                     HystrixRequestLog log = HystrixRequestLog.getCurrentRequest();
                     if (log != null) {
+                        // 响应头中添加执行情况信息
                         ((HttpServletResponse) response).addHeader("X-HystrixLog", log.getExecutedCommandsAsString());
                     }
                 }

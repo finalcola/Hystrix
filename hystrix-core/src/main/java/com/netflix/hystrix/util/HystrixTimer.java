@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * 管理command的超时任务
  * Timer used by {@link HystrixCommand} to timeout async executions and {@link HystrixCollapser} to trigger batch executions.
  */
 public class HystrixTimer {
@@ -58,6 +59,7 @@ public class HystrixTimer {
      * </p>
      */
     public static void reset() {
+        // 关闭原executor
         ScheduledExecutor ex = INSTANCE.executor.getAndSet(null);
         if (ex != null && ex.getThreadPool() != null) {
             ex.getThreadPool().shutdownNow();
@@ -72,25 +74,25 @@ public class HystrixTimer {
      * NOTE: It is the responsibility of code that adds a listener via this method to clear this listener when completed.
      * <p>
      * <blockquote>
-     * 
+     *
      * <pre> {@code
-     * // add a TimerListener 
+     * // add a TimerListener
      * Reference<TimerListener> listener = HystrixTimer.getInstance().addTimerListener(listenerImpl);
-     * 
+     *
      * // sometime later, often in a thread shutdown, request cleanup, servlet filter or something similar the listener must be shutdown via the clear() method
      * listener.clear();
      * }</pre>
      * </blockquote>
-     * 
-     * 
-     * @param listener
-     *            TimerListener implementation that will be triggered according to its <code>getIntervalTimeInMilliseconds()</code> method implementation.
+     *
+     * @param listener TimerListener implementation that will be triggered according to its <code>getIntervalTimeInMilliseconds()</code> method implementation.
      * @return reference to the TimerListener that allows cleanup via the <code>clear()</code> method
      */
     public Reference<TimerListener> addTimerListener(final TimerListener listener) {
+        // 如果需要，初始化调度线程池
         startThreadIfNeeded();
         // add the listener
 
+        // 到期执行listener.tick,通知command超时
         Runnable r = new Runnable() {
 
             @Override
@@ -103,7 +105,9 @@ public class HystrixTimer {
             }
         };
 
+        // 调度该任务
         ScheduledFuture<?> f = executor.get().getThreadPool().scheduleAtFixedRate(r, listener.getIntervalTimeInMilliseconds(), listener.getIntervalTimeInMilliseconds(), TimeUnit.MILLISECONDS);
+        // 封装listener和future
         return new TimerReference(listener, f);
     }
 
@@ -130,8 +134,10 @@ public class HystrixTimer {
      * <p>
      * This does the lazy initialization and start of the thread in a thread-safe manner while having little cost the rest of the time.
      */
+    // 如果需要，初始化调度线程池
     protected void startThreadIfNeeded() {
         // create and start thread if one doesn't exist
+        // 新建executor
         while (executor.get() == null || ! executor.get().isInitialized()) {
             if (executor.compareAndSet(null, new ScheduledExecutor())) {
                 // initialize the executor that we 'won' setting

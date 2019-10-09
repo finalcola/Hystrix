@@ -66,6 +66,7 @@ public class HystrixCommandDemo {
         }
     }
 
+    // 模拟请求
     public void runSimulatedRequestOnThread() {
         pool.execute(new Runnable() {
 

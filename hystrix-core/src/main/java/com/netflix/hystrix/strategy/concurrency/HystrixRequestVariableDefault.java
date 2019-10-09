@@ -72,6 +72,7 @@ public class HystrixRequestVariableDefault<T> implements HystrixRequestVariable<
      */
     @SuppressWarnings("unchecked")
     public T get() {
+        // 检查当前线程是否设置了HystrixRequestContext
         if (HystrixRequestContext.getContextForCurrentThread() == null) {
             throw new IllegalStateException(HystrixRequestContext.class.getSimpleName() + ".initializeContext() must be called at the beginning of each request before RequestVariable functionality can be used.");
         }
@@ -93,8 +94,10 @@ public class HystrixRequestVariableDefault<T> implements HystrixRequestVariable<
          * Whichever instance of LazyInitializer succeeds will then have get() invoked which will call
          * the initialValue() method once-and-only-once.
          */
+        // 使用懒加载组件封装后，添加到缓存
         LazyInitializer<T> l = new LazyInitializer<T>(this);
         LazyInitializer<?> existing = variableMap.putIfAbsent(this, l);
+        // 创建实例
         if (existing == null) {
             /*
              * We won the thread-race so can use 'l' that we just created.

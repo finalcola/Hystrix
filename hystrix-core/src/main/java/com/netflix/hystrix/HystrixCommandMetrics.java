@@ -44,8 +44,10 @@ public class HystrixCommandMetrics extends HystrixMetrics {
     @SuppressWarnings("unused")
     private static final Logger logger = LoggerFactory.getLogger(HystrixCommandMetrics.class);
 
+    // 事件类型
     private static final HystrixEventType[] ALL_EVENT_TYPES = HystrixEventType.values();
 
+    // 根据HystrixEventType进行累加
     public static final Func2<long[], HystrixCommandCompletion, long[]> appendEventToBucket = new Func2<long[], HystrixCommandCompletion, long[]>() {
         @Override
         public long[] call(long[] initialCountArray, HystrixCommandCompletion execution) {
@@ -62,12 +64,14 @@ public class HystrixCommandMetrics extends HystrixMetrics {
         }
     };
 
+    // 合并bucket
     public static final Func2<long[], long[], long[]> bucketAggregator = new Func2<long[], long[], long[]>() {
         @Override
         public long[] call(long[] cumulativeEvents, long[] bucketEventCounts) {
             for (HystrixEventType eventType: ALL_EVENT_TYPES) {
                 switch (eventType) {
                     case EXCEPTION_THROWN:
+                        // BAD_REQUEST、FALLBACK_REJECTION、FALLBACK_MISSING、FALLBACK_DISABLED、FALLBACK_FAILURE
                         for (HystrixEventType exceptionEventType: HystrixEventType.EXCEPTION_PRODUCING_EVENT_TYPES) {
                             cumulativeEvents[eventType.ordinal()] += bucketEventCounts[exceptionEventType.ordinal()];
                         }
@@ -81,6 +85,7 @@ public class HystrixCommandMetrics extends HystrixMetrics {
         }
     };
 
+    // 每种命令对应一个HystrixCommandMetrics
     // String is HystrixCommandKey.name() (we can't use HystrixCommandKey directly as we can't guarantee it implements hashcode/equals correctly)
     private static final ConcurrentHashMap<String, HystrixCommandMetrics> metrics = new ConcurrentHashMap<String, HystrixCommandMetrics>();
 
@@ -125,7 +130,9 @@ public class HystrixCommandMetrics extends HystrixMetrics {
                 if (existingMetrics != null) {
                     return existingMetrics;
                 } else {
+                    // 初始化
                     HystrixThreadPoolKey nonNullThreadPoolKey;
+                    // threadPoolKey > commandGroup
                     if (threadPoolKey == null) {
                         nonNullThreadPoolKey = HystrixThreadPoolKey.Factory.asKey(commandGroup.name());
                     } else {
@@ -384,13 +391,16 @@ public class HystrixCommandMetrics extends HystrixMetrics {
     }
 
     /**
-     * Number of requests during rolling window.
-     * Number that failed (failure + success + timeout + threadPoolRejected + semaphoreRejected).
-     * Error percentage;
+     * Number of requests during rolling window.窗口的总请求数
+     * Number that failed (failure + success + timeout + threadPoolRejected + semaphoreRejected).失败请求数
+     * Error percentage;错误百分比
      */
     public static class HealthCounts {
+        // 窗口的总请求数
         private final long totalCount;
+        // 失败请求数
         private final long errorCount;
+        // 错误百分比
         private final int errorPercentage;
 
         HealthCounts(long total, long error) {
@@ -427,8 +437,10 @@ public class HystrixCommandMetrics extends HystrixMetrics {
             long threadPoolRejectedCount = eventTypeCounts[HystrixEventType.THREAD_POOL_REJECTED.ordinal()];
             long semaphoreRejectedCount = eventTypeCounts[HystrixEventType.SEMAPHORE_REJECTED.ordinal()];
 
+            // 递增
             updatedTotalCount += (successCount + failureCount + timeoutCount + threadPoolRejectedCount + semaphoreRejectedCount);
             updatedErrorCount += (failureCount + timeoutCount + threadPoolRejectedCount + semaphoreRejectedCount);
+            // 返回新的HealthCounts
             return new HealthCounts(updatedTotalCount, updatedErrorCount);
         }
 

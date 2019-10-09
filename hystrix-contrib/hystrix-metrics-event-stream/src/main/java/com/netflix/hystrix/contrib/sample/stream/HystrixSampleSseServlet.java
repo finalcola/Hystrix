@@ -106,6 +106,8 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
      * - maintain an open connection with the client
      * - on initial connection send latest data of each requested event type
      * - subsequently send all changes for each requested event type
+     * 检查连接数，并将sampleStream中的数据写入到响应。
+     * 如果未弹射数据，发送ping
      *
      * @param request  incoming HTTP Request
      * @param response outgoing HTTP Response (as a streaming response)
@@ -117,9 +119,12 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
         Subscription sampleSubscription = null;
 
         /* ensure we aren't allowing more connections than we want */
+        // 连接数+1
         int numberConnections = incrementAndGetCurrentConcurrentConnections();
         try {
+            // 连接数阈值
             int maxNumberConnectionsAllowed = getMaxNumberConcurrentConnectionsAllowed(); //may change at runtime, so look this up for each request
+            // 超出连接数限制，返回503
             if (numberConnections > maxNumberConnectionsAllowed) {
                 response.sendError(503, "MaxConcurrentConnections reached: " + maxNumberConnectionsAllowed);
             } else {
@@ -166,6 +171,7 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
                             }
                         });
 
+                // 数据源还未弹射数据，发送ping数据
                 while (moreDataWillBeSent.get() && !isDestroyed) {
                     try {
                         Thread.sleep(pausePollerThreadDelayInMs);
@@ -186,6 +192,7 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
                 }
             }
         } finally {
+            // 连接数-1
             decrementCurrentConcurrentConnections();
             if (sampleSubscription != null && !sampleSubscription.isUnsubscribed()) {
                 sampleSubscription.unsubscribe();

@@ -40,10 +40,12 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class HealthCountsStream extends BucketedRollingCounterStream<HystrixCommandCompletion, long[], HystrixCommandMetrics.HealthCounts> {
 
-    private static final ConcurrentMap<String, HealthCountsStream> streams = new ConcurrentHashMap<String, HealthCountsStream>();
+    // 保存每种command的HealthCountsStream
+    private static final ConcurrentMap<String/*commandKey.name*/, HealthCountsStream> streams = new ConcurrentHashMap<String, HealthCountsStream>();
 
     private static final int NUM_EVENT_TYPES = HystrixEventType.values().length;
 
+    // 累加healthyCounts
     private static final Func2<HystrixCommandMetrics.HealthCounts, long[], HystrixCommandMetrics.HealthCounts> healthCheckAccumulator = new Func2<HystrixCommandMetrics.HealthCounts, long[], HystrixCommandMetrics.HealthCounts>() {
         @Override
         public HystrixCommandMetrics.HealthCounts call(HystrixCommandMetrics.HealthCounts healthCounts, long[] bucketEventCounts) {
@@ -53,10 +55,12 @@ public class HealthCountsStream extends BucketedRollingCounterStream<HystrixComm
 
 
     public static HealthCountsStream getInstance(HystrixCommandKey commandKey, HystrixCommandProperties properties) {
+        // 计算成功和错误百分比并影响{@link HystrixCircuitBreaker#isOpen()}状态的运行状态快照之间的等待时间
         final int healthCountBucketSizeInMs = properties.metricsHealthSnapshotIntervalInMilliseconds().get();
         if (healthCountBucketSizeInMs == 0) {
             throw new RuntimeException("You have set the bucket size to 0ms.  Please set a positive number, so that the metric stream can be properly consumed");
         }
+        // 窗口数量（总时长 / 单个窗口时长）
         final int numHealthCountBuckets = properties.metricsRollingStatisticalWindowInMilliseconds().get() / healthCountBucketSizeInMs;
 
         return getInstance(commandKey, numHealthCountBuckets, healthCountBucketSizeInMs);
@@ -71,6 +75,7 @@ public class HealthCountsStream extends BucketedRollingCounterStream<HystrixComm
             synchronized (HealthCountsStream.class) {
                 HealthCountsStream existingStream = streams.get(commandKey.name());
                 if (existingStream == null) {
+                    // 为每个commandKey创建一个HealthCountsStream
                     HealthCountsStream newStream = new HealthCountsStream(commandKey, numBuckets, bucketSizeInMs,
                             HystrixCommandMetrics.appendEventToBucket);
 

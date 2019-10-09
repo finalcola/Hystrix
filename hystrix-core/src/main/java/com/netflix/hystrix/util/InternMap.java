@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * Utility to have 'intern' - like functionality, which holds single instance of wrapper for a given key
+ * 在Map的基础上，保存了一个valueConstructor，调用intern方法时，会对key调用valueConstructor，然后存入map
  */
 public class InternMap<K, V> {
     private final ConcurrentMap<K, V> storage = new ConcurrentHashMap<K, V>();

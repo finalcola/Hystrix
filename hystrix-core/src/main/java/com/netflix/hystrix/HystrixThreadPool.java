@@ -90,7 +90,7 @@ public interface HystrixThreadPool {
          * Use the String from HystrixThreadPoolKey.name() instead of the HystrixThreadPoolKey instance as it's just an interface and we can't ensure the object
          * we receive implements hashcode/equals correctly and do not want the default hashcode/equals which would create a new threadpool for every object we get even if the name is the same
          */
-        /* package */final static ConcurrentHashMap<String, HystrixThreadPool> threadPools = new ConcurrentHashMap<String, HystrixThreadPool>();
+        /* package */final static ConcurrentHashMap<String/*threadPoolKey*/, HystrixThreadPool> threadPools = new ConcurrentHashMap<String, HystrixThreadPool>();
 
         /**
          * Get the {@link HystrixThreadPool} instance for a given {@link HystrixThreadPoolKey}.
@@ -110,6 +110,7 @@ public interface HystrixThreadPool {
             }
 
             // if we get here this is the first time so we need to initialize
+            // 每个threadPoolKey对应一个HystrixThreadPoolDefault
             synchronized (HystrixThreadPool.class) {
                 if (!threadPools.containsKey(key)) {
                     threadPools.put(key, new HystrixThreadPoolDefault(threadPoolKey, propertiesBuilder));
@@ -173,8 +174,9 @@ public interface HystrixThreadPool {
             HystrixConcurrencyStrategy concurrencyStrategy = HystrixPlugins.getInstance().getConcurrencyStrategy();
             this.queueSize = properties.maxQueueSize().get();
 
+            // 创建线程池和分析组件
             this.metrics = HystrixThreadPoolMetrics.getInstance(threadPoolKey,
-                    concurrencyStrategy.getThreadPool(threadPoolKey, properties),
+                    concurrencyStrategy.getThreadPool(threadPoolKey, properties)/*根据配置创建线程池*/,
                     properties);
             this.threadPool = this.metrics.getThreadPool();
             this.queue = this.threadPool.getQueue();
@@ -202,11 +204,13 @@ public interface HystrixThreadPool {
 
         @Override
         public Scheduler getScheduler(Func0<Boolean> shouldInterruptThread) {
+            // 更新线程池的参数
             touchConfig();
             return new HystrixContextScheduler(HystrixPlugins.getInstance().getConcurrencyStrategy(), this, shouldInterruptThread);
         }
 
         // allow us to change things via fast-properties by setting it each time
+        // 更新线程池的参数
         private void touchConfig() {
             final int dynamicCoreSize = properties.coreSize().get();
             final int configuredMaximumSize = properties.maximumSize().get();

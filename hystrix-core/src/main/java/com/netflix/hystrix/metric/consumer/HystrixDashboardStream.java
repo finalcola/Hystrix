@@ -38,6 +38,7 @@ public class HystrixDashboardStream {
 
     private HystrixDashboardStream(int delayInMs) {
         this.delayInMs = delayInMs;
+        // 每过delayInMs，将统计数据发送到仪表盘
         this.singleSource = Observable.interval(delayInMs, TimeUnit.MILLISECONDS)
                 .map(new Func1<Long, DashboardData>() {
                     @Override

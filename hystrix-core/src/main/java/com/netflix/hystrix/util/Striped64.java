@@ -103,6 +103,9 @@ abstract class Striped64 extends Number {
      *
      * JVM intrinsics note: It would be possible to use a release-only
      * form of CAS here, if it were provided.
+     * 在程序和二进制对象的内存分配中保持cache line aligned就十分重要，
+     * 如果不保证cache line对齐，出现多个cpu中并行运行的进程或者线程同时读写同一个cache line的情况的概率就会很大。
+     * 这时cpu的cache和memory之间会反复出现write back和refresh情况，这种情形就叫做cache thrashing
      */
     static final class Cell {
         volatile long p0, p1, p2, p3, p4, p5, p6;

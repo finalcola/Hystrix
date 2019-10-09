@@ -205,7 +205,8 @@ public class ExecutionResult {
 
     public static ExecutionResult from(HystrixEventType... eventTypes) {
         boolean didExecutionOccur = false;
-        for (HystrixEventType eventType: eventTypes) {
+        for (HystrixEventType eventType : eventTypes) {
+            // 检查该状态下，是否发送了执行的动作
             if (didExecutionOccur(eventType)) {
                 didExecutionOccur = true;
             }
@@ -265,6 +266,7 @@ public class ExecutionResult {
     }
 
     public ExecutionResult markUserThreadCompletion(long userThreadLatency) {
+        // 是否被拒绝执行(线程数拒绝实现或信号量抢占失败)
         if (startTimestamp > 0 && !isResponseRejected()) {
             /* execution time (must occur before terminal state otherwise a race condition can occur if requested by client) */
             return new ExecutionResult(eventCounts, startTimestamp, executionLatency, (int) userThreadLatency,
@@ -336,6 +338,7 @@ public class ExecutionResult {
         return eventCounts.contains(HystrixEventType.THREAD_POOL_REJECTED);
     }
 
+    // 是否被拒绝执行(线程数拒绝实现或信号量抢占失败)
     public boolean isResponseRejected() {
         return isResponseThreadPoolRejected() || isResponseSemaphoreRejected();
     }

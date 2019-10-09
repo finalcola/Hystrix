@@ -31,16 +31,21 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Abstract class that imposes a bucketing structure and provides streams of buckets
+ * 桶计数器
  *
  * @param <Event> type of raw data that needs to get summarized into a bucket
  * @param <Bucket> type of data contained in each bucket
  * @param <Output> type of data emitted to stream subscribers (often is the same as A but does not have to be)
  */
 public abstract class BucketedCounterStream<Event extends HystrixEvent, Bucket, Output> {
+    // 桶的数量
     protected final int numBuckets;
+    // 基于bucket的stream
     protected final Observable<Bucket> bucketedStream;
+    // 用于订阅的取消
     protected final AtomicReference<Subscription> subscription = new AtomicReference<Subscription>(null);
 
+    // 用于统计的方法，由子类提供
     private final Func1<Observable<Event>, Observable<Bucket>> reduceBucketToSummary;
 
     private final BehaviorSubject<Output> counterSubject = BehaviorSubject.create(getEmptyOutputValue());
@@ -48,18 +53,22 @@ public abstract class BucketedCounterStream<Event extends HystrixEvent, Bucket, 
     protected BucketedCounterStream(final HystrixEventStream<Event> inputEventStream, final int numBuckets, final int bucketSizeInMs,
                                     final Func2<Bucket, Event, Bucket> appendRawEventToBucket) {
         this.numBuckets = numBuckets;
+        //  每个桶如何计算聚合的数据(由子类提供)
         this.reduceBucketToSummary = new Func1<Observable<Event>, Observable<Bucket>>() {
             @Override
             public Observable<Bucket> call(Observable<Event> eventBucket) {
+                // reduce: 对发射的数据进行处理，返回最终的处理结果
                 return eventBucket.reduce(getEmptyBucketSummary(), appendRawEventToBucket);
             }
         };
 
+        // 初始桶
         final List<Bucket> emptyEventCountsToStart = new ArrayList<Bucket>();
         for (int i = 0; i < numBuckets; i++) {
             emptyEventCountsToStart.add(getEmptyBucketSummary());
         }
 
+        // 使用rxJava的滑动窗口
         this.bucketedStream = Observable.defer(new Func0<Observable<Bucket>>() {
             @Override
             public Observable<Bucket> call() {
@@ -74,6 +83,7 @@ public abstract class BucketedCounterStream<Event extends HystrixEvent, Bucket, 
 
     abstract Bucket getEmptyBucketSummary();
 
+    // 获取初始值
     abstract Output getEmptyOutputValue();
 
     /**
@@ -108,6 +118,7 @@ public abstract class BucketedCounterStream<Event extends HystrixEvent, Bucket, 
         }
     }
 
+    // 取消订阅
     public void unsubscribe() {
         Subscription s = subscription.get();
         if (s != null) {

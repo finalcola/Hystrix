@@ -60,6 +60,7 @@ public class HystrixContextScheduler extends Scheduler {
     public HystrixContextScheduler(HystrixConcurrencyStrategy concurrencyStrategy, HystrixThreadPool threadPool, Func0<Boolean> shouldInterruptThread) {
         this.concurrencyStrategy = concurrencyStrategy;
         this.threadPool = threadPool;
+        // Scheduler封装实际的线程池
         this.actualScheduler = new ThreadPoolScheduler(threadPool, shouldInterruptThread);
     }
 
@@ -168,6 +169,7 @@ public class HystrixContextScheduler extends Scheduler {
             subscription.add(sa);
             sa.addParent(subscription);
 
+            // 将任务提交到内部的线程池
             ThreadPoolExecutor executor = (ThreadPoolExecutor) threadPool.getExecutor();
             FutureTask<?> f = (FutureTask<?>) executor.submit(sa);
             sa.add(new FutureCompleterWithConfigurableInterrupt(f, shouldInterruptThread, executor));

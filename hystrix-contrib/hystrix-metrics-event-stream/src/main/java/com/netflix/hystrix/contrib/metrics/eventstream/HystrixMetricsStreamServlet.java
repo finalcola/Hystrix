@@ -51,7 +51,9 @@ public class HystrixMetricsStreamServlet extends HystrixSampleSseServlet {
     private static final long serialVersionUID = -7548505095303313237L;
 
     /* used to track number of connections and throttle */
+    // 记录连接数和限流
     private static AtomicInteger concurrentConnections = new AtomicInteger(0);
+    // 最大连接数
     private static DynamicIntProperty maxConcurrentConnections =
             DynamicPropertyFactory.getInstance().getIntProperty("hystrix.config.stream.maxConcurrentConnections", 5);
 
@@ -63,6 +65,7 @@ public class HystrixMetricsStreamServlet extends HystrixSampleSseServlet {
         super(sampleStream.concatMap(new Func1<HystrixDashboardStream.DashboardData, Observable<String>>() {
             @Override
             public Observable<String> call(HystrixDashboardStream.DashboardData dashboardData) {
+                // 将仪表盘分析数据转换为json列表
                 return Observable.from(SerialHystrixDashboardData.toMultipleJsonStrings(dashboardData));
             }
         }), pausePollerThreadDelayInMs);
