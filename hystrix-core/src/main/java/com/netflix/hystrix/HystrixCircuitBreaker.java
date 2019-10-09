@@ -143,6 +143,7 @@ public interface HystrixCircuitBreaker {
             CLOSED, OPEN, HALF_OPEN;
         }
 
+        // 断路器是否开启
         private final AtomicReference<Status> status = new AtomicReference<Status>(Status.CLOSED);
         private final AtomicLong circuitOpened = new AtomicLong(-1);
         private final AtomicReference<Subscription> activeSubscription = new AtomicReference<Subscription>(null);
@@ -156,6 +157,7 @@ public interface HystrixCircuitBreaker {
             activeSubscription.set(s);
         }
 
+        // 订阅HealthCountsStream，用于熔断
         private Subscription subscribeToStream() {
             /*
              * This stream will recalculate the OPEN/CLOSED status on every onNext from the health stream
@@ -191,6 +193,7 @@ public interface HystrixCircuitBreaker {
                                     // if it was open, we need to wait for sleep window to elapse
                                 } else {
                                     // our failure rate is too high, we need to set the state to OPEN
+                                    // 断路器打开
                                     if (status.compareAndSet(Status.CLOSED, Status.OPEN)) {
                                         circuitOpened.set(System.currentTimeMillis());
                                     }
@@ -200,6 +203,7 @@ public interface HystrixCircuitBreaker {
                     });
         }
 
+        // 关闭熔断器并重置数据
         @Override
         public void markSuccess() {
             if (status.compareAndSet(Status.HALF_OPEN, Status.CLOSED)) {
@@ -215,6 +219,7 @@ public interface HystrixCircuitBreaker {
             }
         }
 
+        // 开启断路器
         @Override
         public void markNonSuccess() {
             if (status.compareAndSet(Status.HALF_OPEN, Status.OPEN)) {
@@ -223,6 +228,7 @@ public interface HystrixCircuitBreaker {
             }
         }
 
+        // 是否开启
         @Override
         public boolean isOpen() {
             if (properties.circuitBreakerForceOpen().get()) {
@@ -234,6 +240,7 @@ public interface HystrixCircuitBreaker {
             return circuitOpened.get() >= 0;
         }
 
+        // 是否允许请求通过
         @Override
         public boolean allowRequest() {
             if (properties.circuitBreakerForceOpen().get()) {
@@ -245,6 +252,7 @@ public interface HystrixCircuitBreaker {
             if (circuitOpened.get() == -1) {
                 return true;
             } else {
+                // 半开启，返回false
                 if (status.get().equals(Status.HALF_OPEN)) {
                     return false;
                 } else {
@@ -253,10 +261,13 @@ public interface HystrixCircuitBreaker {
             }
         }
 
+        // 是否已经经过了等待时间
         private boolean isAfterSleepWindow() {
+            // 上次开启熔断器的时间戳
             final long circuitOpenTime = circuitOpened.get();
             final long currentTime = System.currentTimeMillis();
             final long sleepWindowTime = properties.circuitBreakerSleepWindowInMilliseconds().get();
+            // 是否已经超过等待时间
             return currentTime > circuitOpenTime + sleepWindowTime;
         }
 
@@ -271,6 +282,7 @@ public interface HystrixCircuitBreaker {
             if (circuitOpened.get() == -1) {
                 return true;
             } else {
+                // 已经过了等待时间,半打开状态，尝试执行
                 if (isAfterSleepWindow()) {
                     //only the first request after sleep window should execute
                     //if the executing command succeeds, the status will transition to CLOSED
